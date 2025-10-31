@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎁 LuxKickx Christmas Spin</title>
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(circle, #111, #000);
+      color: #fff;
+      font-family: "Poppins", sans-serif;
+      text-align: center;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 2em;
+      color: #ff3131;
+      text-shadow: 0 0 10px #ff3131;
+    }
+
+    .wheel {
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      border: 8px solid #fff;
+      position: relative;
+      overflow: hidden;
+      transition: transform 5s cubic-bezier(0.2, 0.9, 0.3, 1.05);
+    }
+
+    .segment {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      top: 50%;
+      left: 50%;
+      transform-origin: 0% 0%;
+      background: #ff3131;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .segment:nth-child(2) {
+      transform: rotate(180deg);
+      background: #333;
+    }
+
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 25px solid yellow;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background: #ff3131;
+      border: none;
+      color: #fff;
+      font-size: 1.2em;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #ff4f4f;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 1.5em;
+    }
+
+    #winnerForm {
+      display: none;
+      background: #111;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      width: 80%;
+      max-width: 400px;
+    }
+
+    input {
+      width: 90%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+    }
+
+    #adminPanel {
+      display: none;
+      background: #111;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      width: 80%;
+      max-width: 400px;
+    }
+
+    #loginBox {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎄 LuxKickx Christmas Spin 🎁</h1>
+  <div class="pointer"></div>
+  <div class="wheel" id="wheel">
+    <div class="segment">YOU WIN 🎉</div>
+    <div class="segment">BETTER LUCK 😅</div>
+  </div>
+
+  <button id="spinBtn" onclick="spin()">SPIN NOW</button>
+  <div id="result"></div>
+
+  <!-- Winner info form -->
+  <div id="winnerForm">
+    <h3>🎉 Congratulations! Enter your details 🎉</h3>
+    <input type="text" id="winnerName" placeholder="Your Name" required>
+    <input type="text" id="winnerNumber" placeholder="WhatsApp Number" required>
+    <input type="text" id="winnerInsta" placeholder="Instagram ID" required>
+    <button onclick="submitWinner()">Submit</button>
+  </div>
+
+  <!-- Admin Login -->
+  <div id="loginBox">
+    <input type="password" id="adminPass" placeholder="Admin Password">
+    <button onclick="checkPassword()">Login as Admin</button>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel">
+    <h3>🧠 Spin Results</h3>
+    <div id="resultsList"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, onValue, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBp0TbPZcuc8PQ0Yo7tinuFmczbEA67YcE",
+      authDomain: "luxkickx.firebaseapp.com",
+      databaseURL: "https://luxkickx-43efe-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "luxkickx",
+      storageBucket: "luxkickx.appspot.com",
+      messagingSenderId: "435308283527",
+      appId: "1:435308283527:web:70325a995df4f735d7da22"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const adminPassword = "QwEr12@#";
+    let isAdmin = false;
+    let lastOutcome = "";
+
+    if (localStorage.getItem("spunAlready")) {
+      document.getElementById("spinBtn").disabled = true;
+      document.getElementById("spinBtn").innerText = "You already spin!";
+    }
+
+    // SPIN FUNCTION
+    window.spin = async function () {
+      const wheel = document.getElementById("wheel");
+      const result = document.getElementById("result");
+      const btn = document.getElementById("spinBtn");
+
+      btn.disabled = true;
+
+      const winnersRef = ref(db, "winnersCount");
+      let snapshot = await get(winnersRef);
+      let winCount = snapshot.exists() ? snapshot.val() : 0;
+
+      const spinAngle = Math.floor(Math.random() * 360) + 720;
+      wheel.style.transform = `rotate(${spinAngle}deg)`;
+
+      setTimeout(async () => {
+        let outcome = "BETTER LUCK NEXT TIME 😅";
+        if (winCount < 5 && Math.random() < 0.5) {
+          outcome = "YOU WIN 🎉";
+          await set(winnersRef, winCount + 1);
+        }
+
+        result.innerText = outcome;
+        localStorage.setItem("spunAlready", "true");
+        lastOutcome = outcome;
+
+        await push(ref(db, "spinResults"), {
+          result: outcome,
+          time: new Date().toLocaleString(),
+          device: navigator.userAgent.slice(0, 50)
+        });
+
+        btn.innerText = "Thank you!";
+
+        // If win — show the winner form
+        if (outcome === "YOU WIN 🎉") {
+          document.getElementById("winnerForm").style.display = "block";
+        }
+      }, 5000);
+    };
+
+    // SUBMIT WINNER DETAILS
+    window.submitWinner = async function () {
+      const name = document.getElementById("winnerName").value.trim();
+      const number = document.getElementById("winnerNumber").value.trim();
+      const insta = document.getElementById("winnerInsta").value.trim();
+      if (!name || !number || !insta) return alert("Please fill all fields!");
+
+      await push(ref(db, "winners"), {
+        name,
+        number,
+        insta,
+        time: new Date().toLocaleString()
+      });
+
+      alert("✅ Your details have been saved! We’ll contact you soon 🎁");
+      document.getElementById("winnerForm").style.display = "none";
+    };
+
+    // ADMIN LOGIN
+    window.checkPassword = function () {
+      const pass = document.getElementById("adminPass").value;
+      if (pass === adminPassword) {
+        isAdmin = true;
+        document.getElementById("adminPanel").style.display = "block";
+        document.getElementById("loginBox").style.display = "none";
+      } else {
+        alert("❌ Wrong password!");
+      }
+    };
+
+    // VIEW RESULTS
+    const resultsList = document.getElementById("resultsList");
+    onValue(ref(db, "winners"), (snapshot) => {
+      if (!isAdmin) return;
+      resultsList.innerHTML = "";
+      snapshot.forEach((child) => {
+        const val = child.val();
+        const div = document.createElement("div");
+        div.innerHTML = `<strong>${val.name}</strong> - ${val.number} - ${val.insta} <br><small>${val.time}</small>`;
+        resultsList.appendChild(div);
+      });
+    });
+  </script>
+</body>
+</html>
